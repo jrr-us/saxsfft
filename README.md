@@ -1,10 +1,14 @@
 # SAXS‑FFT 2D
 
+Joaquin Ramirez-Rico, University of Seville — [mates-lab.es](https://mates-lab.es/)
+
+**Run it online: <https://jrr-us.github.io/saxsfft/>**
+
 A small teaching application for small‑angle scattering. It generates two‑dimensional microstructures and computes their scattering pattern as the squared modulus of the 2D Fourier transform. It shows the microstructure, the 2D pattern and the azimuthally averaged I(q).
 
 ## Running it
 
-Open `index.html` in a recent browser (Chrome, Edge or Firefox) on Windows, Linux or macOS. Nothing needs to be installed and no internet connection is needed. You can copy the whole folder to a USB stick or put it on any web server.
+Use the online version above, or download this repository and open `index.html` in a recent browser (Chrome, Edge or Firefox) on Windows, Linux or macOS. Nothing needs to be installed and no internet connection is needed. You can copy the whole folder to a USB stick or put it on any web server.
 
 The computation runs in a background Web Worker, so the page stays responsive. *Stop* aborts a long calculation.
 
@@ -72,3 +76,7 @@ The **“Include pixel blur”** option multiplies the analytic curve by the pix
 | `js/main.js` | user interface |
 
 The computational files are plain JavaScript with no dependencies, so they can also be loaded in Node.js for scripting.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). © 2026 Joaquin Ramirez-Rico.

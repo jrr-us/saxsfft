@@ -34,6 +34,9 @@ body { background: var(--bg); color: var(--fg); font: 13px/1.4 system-ui, -apple
 .status { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
 .status.busy { color: var(--accent); }
 .status.error { color: var(--warn); }
+.credit { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.credit a { color: inherit; }
+@media (max-width: 900px) { .top { flex-wrap: wrap; } .credit { order: 3; width: 100%; white-space: normal; } }
 
 .layout { flex: 1; display: flex; min-height: 0; }
 .controls { width: 300px; flex: none; overflow-y: auto; padding: 8px 12px 24px; border-right: 1px solid var(--border); background: var(--panel); }
