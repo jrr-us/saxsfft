@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAXS-FFT 2D</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top">
+  <h1>SAXS‑FFT <span>2D microstructure → scattering</span></h1>
+  <div id="status" class="status">Ready</div>
+</header>
+
+<div class="layout">
+  <aside class="controls">
+    <section>
+      <h2>Microstructure</h2>
+      <label class="row"><span>Type</span><select id="structure"></select></label>
+      <p id="hint" class="hint"></p>
+      <div id="structFields"></div>
+    </section>
+
+    <section>
+      <h2>Grid &amp; contrast</h2>
+      <label class="row"><span>Grid N</span>
+        <select id="N"><option>256</option><option selected>512</option><option>1024</option></select></label>
+      <label class="row"><span>Pixel size a</span><input id="a" type="number" value="1" min="0.05" step="0.1"><em>nm</em></label>
+      <label class="row"><span>Seed</span><input id="seed" type="number" value="1" min="1" step="1"><button id="reseed" title="New random seed" type="button">🎲</button></label>
+      <label class="row"><span>ρ matrix</span><input id="rhoM" type="number" value="0" step="0.1"></label>
+      <label class="row" id="rhoPRow"><span>ρ particle</span><input id="rhoP" type="number" value="1" step="0.1"></label>
+      <label class="check"><input id="invert" type="checkbox"> Invert phases (Babinet)</label>
+      <p id="gridInfo" class="hint"></p>
+    </section>
+
+    <section>
+      <h2>Scattering</h2>
+      <label class="check"><input id="meanSub" type="checkbox" checked> Subtract mean ρ (remove q = 0 spike)</label>
+      <label class="row"><span>Window</span><select id="window"><option value="none">none (periodic)</option><option value="hann">Hann</option></select></label>
+      <label class="row"><span>Zero padding</span><select id="pad"><option value="1">none</option><option value="2">× 2</option></select></label>
+      <label class="row"><span>1D range</span><select id="range"><option value="qmax">to q_max = π/a</option><option value="corner">to corner (√2 q_max)</option></select></label>
+      <label class="check"><input id="pixelMTF" type="checkbox" checked> Include pixel blur in analytic curve</label>
+    </section>
+
+    <section>
+      <h2>Display</h2>
+      <label class="row"><span>Colormap</span><select id="cmap"></select></label>
+      <label class="row"><span>2D range</span><input id="decades" type="range" min="2" max="12" step="0.5" value="6"><em id="decadesOut">6 dec</em></label>
+      <label class="row"><span>2D top</span><input id="top" type="range" min="-6" max="0" step="0.25" value="0"><em id="topOut">max</em></label>
+      <label class="check"><input id="ovDilute" type="checkbox" checked> Analytic particles (S = 1)</label>
+      <label class="check"><input id="ovPorod" type="checkbox"> Porod law 2Δρ²(P/A) q⁻³</label>
+      <label class="check"><input id="ovGuinier" type="checkbox"> Guinier I₀ exp(−q²Rg²/2)</label>
+      <label class="check"><input id="xlog" type="checkbox" checked> log q</label>
+      <label class="check"><input id="ylog" type="checkbox" checked> log I</label>
+    </section>
+
+    <section class="actions">
+      <label class="check"><input id="auto" type="checkbox" checked> Update automatically</label>
+      <div class="btns">
+        <button id="run" class="primary" type="button">Generate</button>
+        <button id="stop" type="button" disabled>Stop</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Export</h2>
+      <div class="btns wrap">
+        <button id="pngStruct" type="button">Structure PNG</button>
+        <button id="png2D" type="button">2D PNG</button>
+        <button id="png1D" type="button">1D PNG</button>
+        <button id="csv" type="button">I(q) CSV</button>
+        <button id="saveJSON" type="button">Save params</button>
+        <button id="loadJSON" type="button">Load params</button>
+        <input id="fileJSON" type="file" accept=".json,application/json" hidden>
+      </div>
+    </section>
+  </aside>
+
+  <main class="views">
+    <div class="panel">
+      <div class="ptitle">Microstructure ρ(x, y)</div>
+      <canvas id="cvStruct"></canvas>
+      <div class="readout" id="roStruct">&nbsp;</div>
+    </div>
+    <div class="panel">
+      <div class="ptitle">Scattering pattern log₁₀ I(qx, qy)</div>
+      <canvas id="cv2D"></canvas>
+      <div class="readout" id="ro2D">&nbsp;</div>
+    </div>
+    <div class="panel wide">
+      <div class="ptitle tabs">
+        <button class="tab active" data-tab="I" type="button">I(q), azimuthal average</button>
+        <button class="tab" data-tab="S" type="button">S(q) = I / I_particles</button>
+        <span class="tiphint">drag to zoom · double-click to reset</span>
+      </div>
+      <canvas id="cv1D"></canvas>
+      <div class="readout" id="ro1D">&nbsp;</div>
+    </div>
+    <div class="panel wide info">
+      <div class="ptitle">Information</div>
+      <ul id="info"></ul>
+    </div>
+  </main>
+</div>
+
+<script src="js/fft.js"></script>
+<script src="js/rng.js"></script>
+<script src="js/structures.js"></script>
+<script src="js/raster.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/worker.js"></script>
+<script src="js/colormaps.js"></script>
+<script src="js/plot.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
