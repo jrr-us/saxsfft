@@ -39,12 +39,15 @@
       <label class="row"><span>Window</span><select id="window"><option value="none">none (periodic)</option><option value="hann">Hann</option></select></label>
       <label class="row"><span>Zero padding</span><select id="pad"><option value="1">none</option><option value="2">× 2</option></select></label>
       <label class="row"><span>1D range</span><select id="range"><option value="qmax">to q_max = π/a</option><option value="corner">to corner (√2 q_max)</option></select></label>
+      <label class="check"><input id="smear" type="checkbox" checked> Resolution smearing (Gaussian in q)</label>
+      <label class="row"><span>Smearing FWHM</span><input id="smearW" type="number" min="0.5" max="20" step="0.5" value="3" title="Gaussian FWHM in units of Δq = 2π/L"><em>× Δq</em></label>
       <label class="check"><input id="pixelMTF" type="checkbox" checked> Include pixel blur in analytic curve</label>
     </section>
 
     <section>
       <h2>Display</h2>
       <label class="row"><span>Colormap</span><select id="cmap"></select></label>
+      <label class="row"><span>2D scale</span><select id="scale2D"><option value="log">log₁₀ I</option><option value="lin">linear I</option></select></label>
       <label class="row"><span>2D range</span><input id="decades" type="range" min="2" max="12" step="0.5" value="6"><em id="decadesOut">6 dec</em></label>
       <label class="row"><span>2D top</span><input id="top" type="range" min="-6" max="0" step="0.25" value="0"><em id="topOut">max</em></label>
       <label class="check"><input id="ovDilute" type="checkbox" checked> Analytic particles (S = 1)</label>
@@ -83,7 +86,7 @@
       <div class="readout" id="roStruct">&nbsp;</div>
     </div>
     <div class="panel">
-      <div class="ptitle">Scattering pattern log₁₀ I(qx, qy)</div>
+      <div class="ptitle" id="title2D">Scattering pattern log₁₀ I(qx, qy)</div>
       <canvas id="cv2D"></canvas>
       <div class="readout" id="ro2D">&nbsp;</div>
     </div>

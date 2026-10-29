@@ -24,7 +24,11 @@ The sample is an N × N grid of pixels of size *a* (nm) with periodic boundary c
 | Guinier | 2D form I₀ exp(−q²Rg²/2). For a disk Rg² = R²/2. DLA uses the cluster Rg. |
 | Invariant | Σ I (Δq/2π)² = ⟨Δρ²⟩ exactly (Parseval). The info panel also shows how much of it the 1D integral up to q_max recovers. |
 
+**Resolution smearing** (on by default) mimics a real instrument, where each detector pixel collects a small range of q (beam size, divergence, pixel size). The 2D intensity is convolved with a Gaussian in q of the chosen FWHM, given in units of Δq = 2π/L (default 3 Δq), before the radial average. The analytic curve is smeared with the same 2D Gaussian (exact radial kernel), and only the smeared version is shown. Smearing fills in the form‑factor minima, averages out speckle in the 2D pattern and leaves the invariant unchanged. Seen from real space, it multiplies the density autocorrelation γ(r) by exp(−r²σ_q²/2): the instrument cannot see correlations much longer than 1/σ_q.
+
 The **“Include pixel blur”** option multiplies the analytic curve by the pixel transfer function ⟨sinc²(qₓa/2) sinc²(q_ya/2)⟩. Rasterising with area coverage convolves the structure with one pixel. Without the correction, the FFT data fall below the analytic curve near q_max.
+
+**Display.** The 2D pattern can be shown as log₁₀ I (default; *2D range* sets the number of decades) or as linear I. In both, *2D top* lowers the top of the colour scale (by decades in log, as a fraction of the maximum in linear) to bring out weaker features. A linear map shows how strongly the intensity is concentrated at low q, which the log map hides.
 
 ## Structures
 
@@ -42,9 +46,10 @@ The **“Include pixel blur”** option multiplies the analytic curve by the pix
 2. Dilute → dense hard disks at the same R: watch I(q→0) drop and the peak appear near 2π/(2R). Open the S(q) tab.
 3. Polydispersity 0 → 0.2: the form‑factor minima vanish.
 4. Tick *Invert phases*. I(q) is unchanged for q > 0 (Babinet's principle).
-5. Untick *Subtract mean ρ* and enable zero padding: the q = 0 peak leaks into neighbouring q (truncation and sinc ripples).
-6. Aligned ellipses: the pattern is elongated perpendicular to the long axis (reciprocal space).
-7. Make the box smaller (N = 256): q_min rises and the Guinier region is lost. Make the pixel bigger: q_max falls.
+5. Untick *Subtract mean ρ* and enable zero padding: the q = 0 peak leaks into neighbouring q (truncation and sinc ripples). With smearing on, it spreads like a direct beam: the reason for a beamstop.
+6. Single disk: compare with *Resolution smearing* off and on, then increase the FWHM step by step. The minima fill in, while the Guinier and Porod regions hardly change.
+7. Aligned ellipses: the pattern is elongated perpendicular to the long axis (reciprocal space).
+8. Make the box smaller (N = 256): q_min rises and the Guinier region is lost. Make the pixel bigger: q_max falls.
 
 ## Export
 

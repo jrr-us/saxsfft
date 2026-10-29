@@ -107,6 +107,57 @@
       return s / NA;
     }
 
+    /* Exponentially scaled modified Bessel function e^-x I0(x), x >= 0 (Numerical Recipes). */
+    function besselI0e(x) {
+      if (x < 3.75) {
+        var y = (x / 3.75) * (x / 3.75);
+        return Math.exp(-x) * (1 + y * (3.5156229 + y * (3.0899424 + y * (1.2067492 + y * (0.2659732 + y * (0.360768e-1 + y * 0.45813e-2))))));
+      }
+      var z = 3.75 / x;
+      return (0.39894228 + z * (0.1328592e-1 + z * (0.225319e-2 + z * (-0.157565e-2 + z * (0.916281e-2 + z * (-0.2057706e-1 +
+             z * (0.2635537e-1 + z * (-0.1647633e-1 + z * 0.392377e-2)))))))) / Math.sqrt(x);
+    }
+
+    /* Resolution smearing: periodic separable Gaussian (sigma in grid pixels) on the
+       unshifted M x M intensity. The kernel sums to 1, so the invariant is kept. */
+    function smear2D(I, M, sig) {
+      var R = Math.ceil(4 * sig), K = new Float64Array(2 * R + 1), ks = 0, i, x, y, j;
+      for (i = -R; i <= R; i++) { K[i + R] = Math.exp(-0.5 * i * i / (sig * sig)); ks += K[i + R]; }
+      for (i = 0; i <= 2 * R; i++) K[i] /= ks;
+      var row = new Float64Array(M), tmp = new Float64Array(M * M);
+      for (y = 0; y < M; y++) {
+        for (x = 0; x < M; x++) row[x] = I[y * M + x];
+        for (x = 0; x < M; x++) {
+          var v = 0;
+          for (j = -R; j <= R; j++) v += K[j + R] * row[(x + j + M * R) % M];
+          tmp[y * M + x] = v;
+        }
+      }
+      for (x = 0; x < M; x++) {
+        for (y = 0; y < M; y++) row[y] = tmp[y * M + x];
+        for (y = 0; y < M; y++) {
+          var w = 0;
+          for (j = -R; j <= R; j++) w += K[j + R] * row[(y + j + M * R) % M];
+          I[y * M + x] = w;
+        }
+      }
+    }
+
+    /* The same 2D Gaussian smearing for an isotropic curve f(q): the radial kernel is
+       (q'/s^2) exp(-(q-q')^2/2s^2) e^(-qq'/s^2) I0(qq'/s^2). f is tabulated once. */
+    function smearRadial(f, qs, sq) {
+      var h = sq / 6, qend = qs[qs.length - 1] + 7 * sq, nt = Math.ceil(qend / h) + 1, tab = new Float64Array(nt), t;
+      for (t = 0; t < nt; t++) tab[t] = f(t * h);
+      return qs.map(function (q) {
+        var t0 = Math.max(0, Math.floor((q - 7 * sq) / h)), t1 = Math.min(nt - 1, Math.ceil((q + 7 * sq) / h)), num = 0, den = 0;
+        for (var t = t0; t <= t1; t++) {
+          var qp = t * h, w = qp * Math.exp(-0.5 * (q - qp) * (q - qp) / (sq * sq)) * besselI0e(q * qp / (sq * sq));
+          num += w * tab[t]; den += w;
+        }
+        return den > 0 ? num / den : f(q);
+      });
+    }
+
     function hann(n) {
       var w = new Float64Array(n);
       for (var i = 0; i < n; i++) w[i] = 0.5 * (1 - Math.cos(2 * PI * (i + 0.5) / n));
@@ -133,6 +184,10 @@
       var scale = a * a * a * a / (A * w2), I = new Float32Array(M * M);
       for (i = 0; i < M * M; i++) I[i] = (re[i] * re[i] + im[i] * im[i]) * scale;
       re = im = null;
+
+      // instrumental resolution: Gaussian in q with FWHM = O.smear * (2 pi / L)
+      var sigQ = O.smear > 0 ? O.smear * (2 * PI / (N * a)) / (2 * Math.sqrt(2 * Math.LN2)) : 0;
+      if (sigQ > 0) smear2D(I, M, sigQ / (2 * PI / (M * a)));
 
       // radial average in bins of width dq centred on k = 0, 1, 2, ...
       var dq = 2 * PI / (M * a), kmax = O.range === 'corner' ? Math.ceil(M / Math.SQRT2) : M / 2;
@@ -172,7 +227,8 @@
 
       var dil = dilute(gen, P, A);
       if (dil) {
-        res.dilute = qs.map(function (q) { return dil(q) * (O.pixelMTF ? pixelMTF(q, a) : 1); });
+        var fq = function (q) { return dil(q) * (O.pixelMTF ? pixelMTF(q, a) : 1); };
+        res.dilute = sigQ > 0 ? smearRadial(fq, qs, sigQ) : qs.map(fq);
         var I0 = dil(0), rb = gen.form.kind === 'disk' ? gen.form.R : gen.form.kind === 'cs' ? gen.form.ro : Math.max(gen.form.a, gen.form.b);
         var q1 = 0.02 / rb, rg2 = 2 * (1 - dil(q1) / I0) / (q1 * q1);
         res.stats.I0 = I0; res.stats.Rg = Math.sqrt(Math.max(rg2, 0)); res.stats.guinierOf = 'particles';
@@ -184,6 +240,7 @@
         res.stats.guinierOf = gen.guinier ? gen.guinier.label : '';
       }
       if (w) res.stats.windowNote = true;
+      if (sigQ > 0) res.stats.smearFWHM = sigQ * 2 * Math.sqrt(2 * Math.LN2);
       return res;
     }
 

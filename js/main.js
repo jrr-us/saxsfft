@@ -136,7 +136,8 @@
 
   function scatParams() {
     return { meanSub: $('meanSub').checked, window: $('window').value, pad: parseInt($('pad').value, 10),
-             range: $('range').value, pixelMTF: $('pixelMTF').checked };
+             range: $('range').value, pixelMTF: $('pixelMTF').checked,
+             smear: $('smear').checked ? Math.max(0, parseFloat($('smearW').value) || 0) : 0 };
   }
 
   function validate(P) {
@@ -268,35 +269,38 @@
   function draw2D(newData) {
     var s = state.scat;
     if (!s) return;
-    var M = s.M, n = M * M, c = (M / 2) * M + M / 2;
-    if (newData || !s.logI) {
-      s.logI = new Float32Array(n);
-      var mx = -Infinity;
-      for (var y = 0; y < M; y++) {
+    var M = s.M, n = M * M, c = (M / 2) * M + M / 2, lin = $('scale2D').value === 'lin';
+    if (newData) s.img = {};
+    var key = lin ? 'lin' : 'log';
+    if (!s.img[key]) {
+      var img = new Float32Array(n), mx = -Infinity;
+      for (var y = 0; y < M; y++) {                    // flip so +qy points up
         var src = (M - 1 - y) * M, dst = y * M;
         for (var x = 0; x < M; x++) {
-          var v = s.I2D[src + x], lv = v > 0 ? Math.log10(v) : -300;
-          s.logI[dst + x] = lv;
-          if (src + x !== c && lv > mx) mx = lv;
+          var v = s.I2D[src + x], iv = lin ? v : (v > 0 ? Math.log10(v) : -300);
+          img[dst + x] = iv;
+          if (src + x !== c && iv > mx) mx = iv;
         }
       }
-      s.logMax = mx;
-    }
-    // Max-pooled pyramid: isolated Bragg peaks stay visible when downscaled.
-    if (newData || !s.pyramid) {
-      s.pyramid = [{ v: s.logI, n: M }];
-      for (var lv = s.logI, n2 = M; n2 > 128; ) {
+      // Max-pooled pyramid: isolated Bragg peaks stay visible when downscaled.
+      var pyr = [{ v: img, n: M }];
+      for (var lv = img, n2 = M; n2 > 128; ) {
         var h = n2 >> 1, pooled = new Float32Array(h * h);
         for (var py = 0; py < h; py++) for (var px = 0; px < h; px++) {
           var o = 2 * py * n2 + 2 * px;
           pooled[py * h + px] = Math.max(lv[o], lv[o + 1], lv[o + n2], lv[o + n2 + 1]);
         }
-        s.pyramid.push({ v: pooled, n: h });
+        pyr.push({ v: pooled, n: h });
         lv = pooled; n2 = h;
       }
+      s.img[key] = { pyr: pyr, max: mx };
     }
-    var hi = s.logMax + num('top'), lo = hi - num('decades'), cm = $('cmap').value;
-    var levels = s.pyramid.map(function (L) {
+    // log: 'top' lowers the ceiling by decades, 'decades' sets the span;
+    // linear: 0 to max x 10^top (lowering it saturates the strong centre)
+    var im = s.img[key], cm = $('cmap').value, hi, lo;
+    if (lin) { hi = im.max * Math.pow(10, num('top')); lo = 0; }
+    else { hi = im.max + num('top'); lo = hi - num('decades'); }
+    var levels = im.pyr.map(function (L) {
       var off = document.createElement('canvas'); off.width = L.n; off.height = L.n;
       off.getContext('2d').putImageData(SAXS_colormaps.toImageData(L.v, L.n, L.n, lo, hi, cm), 0, 0);
       return off;
@@ -359,6 +363,7 @@
                  ' (' + (100 * st.Q1D / st.variance).toFixed(1) + '%)');
       if (st.perimeter > 0) lines.push('Interface length from ∑|∇ρ|: P = ' + fmt(st.perimeter) + ' nm, P/A = ' + fmt(st.perimeter / (d.L * d.L)) + ' nm⁻¹');
       if (st.Rg > 0) lines.push('Guinier (' + st.guinierOf + '): Rg = ' + st.Rg.toFixed(2) + ' nm, I(0) = ' + fmt(st.I0));
+      if (st.smearFWHM) lines.push('Resolution smearing: Gaussian in q, FWHM = ' + fmt(st.smearFWHM) + ' nm⁻¹ (applied to the 2D data and to the analytic curve)');
       if (st.windowNote) lines.push('⚠ Hann window: I divided by ⟨w²⟩, which is right for homogeneous structures but not for a single centred particle');
       if (!engine.usesWorker()) lines.push('⚠ Web Worker unavailable: computing on the main thread');
     }
@@ -385,8 +390,8 @@
 
   function allParams() {
     var scal = {};
-    ['N', 'a', 'seed', 'rhoM', 'rhoP', 'window', 'pad', 'range', 'cmap', 'decades', 'top'].forEach(function (id) { scal[id] = $(id).value; });
-    ['invert', 'meanSub', 'pixelMTF', 'ovDilute', 'ovPorod', 'ovGuinier', 'xlog', 'ylog'].forEach(function (id) { scal[id] = $(id).checked; });
+    ['N', 'a', 'seed', 'rhoM', 'rhoP', 'window', 'pad', 'range', 'smearW', 'cmap', 'scale2D', 'decades', 'top'].forEach(function (id) { scal[id] = $(id).value; });
+    ['invert', 'meanSub', 'pixelMTF', 'smear', 'ovDilute', 'ovPorod', 'ovGuinier', 'xlog', 'ylog'].forEach(function (id) { scal[id] = $(id).checked; });
     return { app: 'SAXS-FFT 2D', version: 1, structure: state.struct, fields: state.values[state.struct], controls: scal };
   }
 
@@ -400,6 +405,7 @@
       if (!el) return;
       if (el.type === 'checkbox') el.checked = !!c[id]; else el.value = c[id];
     });
+    $('smearW').disabled = !$('smear').checked;
     buildFields(); updateGridInfo(); updateDisplayLabels();
     state.needGen = true; request(true);
   }
@@ -421,7 +427,10 @@
   function updateDisplayLabels() {
     $('decadesOut').textContent = $('decades').value + ' dec';
     var t = parseFloat($('top').value);
-    $('topOut').textContent = t === 0 ? 'max' : t + ' dec';
+    var lin = $('scale2D').value === 'lin';
+    $('topOut').textContent = t === 0 ? 'max' : lin ? 'max × ' + fmt(Math.pow(10, t)) : t + ' dec';
+    $('decades').disabled = lin;
+    $('title2D').textContent = lin ? 'Scattering pattern I(qx, qy)' : 'Scattering pattern log₁₀ I(qx, qy)';
   }
 
   selStruct.addEventListener('change', function () {
@@ -434,8 +443,9 @@
     $(id).addEventListener('change', function () { updateGridInfo(); structureChanged(); });
   });
   $('reseed').addEventListener('click', function () { $('seed').value = 1 + Math.floor(Math.random() * 99999); structureChanged(); });
-  ['meanSub', 'window', 'pad', 'range', 'pixelMTF'].forEach(function (id) { $(id).addEventListener('change', scatteringChanged); });
-  ['cmap', 'decades', 'top'].forEach(function (id) {
+  ['meanSub', 'window', 'pad', 'range', 'pixelMTF', 'smear', 'smearW'].forEach(function (id) { $(id).addEventListener('change', scatteringChanged); });
+  $('smear').addEventListener('change', function () { $('smearW').disabled = !$('smear').checked; });
+  ['cmap', 'scale2D', 'decades', 'top'].forEach(function (id) {
     $(id).addEventListener('input', function () { updateDisplayLabels(); draw2D(false); });
   });
   ['ovDilute', 'ovPorod', 'ovGuinier'].forEach(function (id) { $(id).addEventListener('change', function () { draw1D(true); }); });
